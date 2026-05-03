@@ -30,7 +30,7 @@ jobs:
     - name: Download SharpMonoInjector
       shell: pwsh
       run: |
-        Invoke-WebRequest -Uri "https://github.com/wh0am15533/SharpMonoInjector/releases/download/v2.2/SharpMonoInjector.Console.zip" -OutFile "smi.zip"
+        Invoke-WebRequest -Uri "https://github.com/warbler/SharpMonoInjector/releases/download/v2.2/SharpMonoInjector.Console.zip" -OutFile "smi.zip"
         Expand-Archive -Path "smi.zip" -DestinationPath "smi_temp"
         cp smi_temp/smi.exe Launcher/GnomiumMenu/Resources/
         cp smi_temp/SharpMonoInjector.dll Launcher/GnomiumMenu/Resources/
