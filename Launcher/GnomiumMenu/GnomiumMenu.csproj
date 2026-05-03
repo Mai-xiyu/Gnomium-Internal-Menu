@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>false</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\CheatPayload.dll" LogicalName="CheatPayload.dll" />
+    <EmbeddedResource Include="Resources\smi.exe" LogicalName="smi.exe" />
+    <EmbeddedResource Include="Resources\SharpMonoInjector.dll" LogicalName="SharpMonoInjector.dll" />
+  </ItemGroup>
+
+</Project>
