@@ -71,3 +71,4 @@ smi.exe inject -p "Gnomium" -a "bin\Release\netstandard2.1\CheatPayload.dll" -n 
 ## ⚠️ 免责声明
 
 本项目仅供教育和逆向工程研究使用。本项目通过展示跨端 RPC 权限滥用造成的全局影响，凸显了在 Unity 多人游戏开发中进行服务端权威校验的必要性。因使用本工具造成的任何毁坏体验或封号等后果由使用者自行承担。
+
