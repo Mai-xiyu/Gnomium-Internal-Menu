@@ -39,10 +39,118 @@ namespace BurglinCheat
     {
         // ============ UI 状态 ============
         private bool showMenu = true;
-        private Rect menuRect = new Rect(20, 20, 420, 620);
+        private Rect menuRect = new Rect(30, 30, 520, 640);
         private Vector2 scrollPos;
         private int currentTab = 0;
         private string[] tabs = { "玩家", "传送", "物品", "机制", "网络", "队友", "视觉", "混沌" };
+        private bool _isDragging = false;
+        private Vector2 _dragOffset;
+
+        // ============ 样式系统 ============
+        private bool _stylesReady = false;
+        private GUIStyle sWin, sTabOn, sTabOff, sBtn, sBtnSm, sTogOn, sTogOff;
+        private GUIStyle sLbl, sSec, sInput, sDimLbl;
+        private Texture2D txBg, txTitle, txTabOn, txTabOff, txTabHov;
+        private Texture2D txBtn, txBtnHov, txBtnAct, txTogOn, txTogOff, txStatus;
+
+        private Texture2D Tex(int r, int g, int b, int a = 255)
+        {
+            var t = new Texture2D(1, 1, TextureFormat.RGBA32, false);
+            t.SetPixel(0, 0, new Color(r / 255f, g / 255f, b / 255f, a / 255f));
+            t.Apply();
+            return t;
+        }
+
+        private GUIStyle CloneBtn(Texture2D norm, Texture2D hov, Texture2D act, Color textNorm, int fs = 12)
+        {
+            var s = new GUIStyle(GUI.skin.button)
+            {
+                fontSize = fs,
+                padding = new RectOffset(8, 8, 5, 5),
+                border = new RectOffset(1, 1, 1, 1),
+                alignment = TextAnchor.MiddleCenter
+            };
+            s.normal.background = norm;   s.normal.textColor = textNorm;
+            s.hover.background  = hov;    s.hover.textColor  = Color.white;
+            s.active.background = act;    s.active.textColor = new Color(0f, 0.9f, 1f);
+            s.onNormal.background = norm; s.onNormal.textColor = textNorm;
+            return s;
+        }
+
+        private void BuildStyles()
+        {
+            if (_stylesReady) return;
+            _stylesReady = true;
+
+            txBg     = Tex(13, 15, 24, 248);
+            txTitle  = Tex( 9, 10, 18, 255);
+            txTabOn  = Tex( 0, 90,150, 220);
+            txTabOff = Tex(20, 23, 36, 255);
+            txTabHov = Tex(32, 38, 58, 255);
+            txBtn    = Tex(26, 30, 46, 255);
+            txBtnHov = Tex(38, 45, 68, 255);
+            txBtnAct = Tex( 0,110,175, 200);
+            txTogOn  = Tex( 0,175,240, 230);
+            txTogOff = Tex(28, 32, 48, 255);
+            txStatus = Tex( 9, 10, 18, 255);
+
+            var cText   = new Color(0.82f, 0.87f, 0.97f);
+            var cDim    = new Color(0.50f, 0.55f, 0.65f);
+            var cAccent = new Color(0f, 0.76f, 1f);
+
+            sWin = new GUIStyle(GUI.skin.box);
+            sWin.normal.background = txBg;
+            sWin.border = new RectOffset(0, 0, 0, 0);
+            sWin.padding = new RectOffset(0, 0, 0, 0);
+
+            sTabOn  = CloneBtn(txTabOn,  txTabOn,  txTabOn,  cAccent, 12);
+            sTabOn.fontStyle = FontStyle.Bold;
+            sTabOff = CloneBtn(txTabOff, txTabHov, txTabHov, cDim,    11);
+
+            sBtn   = CloneBtn(txBtn, txBtnHov, txBtnAct, cText, 12);
+            sBtnSm = CloneBtn(txBtn, txBtnHov, txBtnAct, cText, 11);
+            sBtnSm.padding = new RectOffset(5, 5, 4, 4);
+
+            sTogOn  = CloneBtn(txTogOn,  txBtnHov, txBtnAct, new Color(0.02f, 0.02f, 0.05f), 12);
+            sTogOn.fontStyle  = FontStyle.Bold;
+            sTogOff = CloneBtn(txTogOff, txBtnHov, txTogOn,  cDim, 12);
+
+            sSec = new GUIStyle(GUI.skin.label) { fontSize = 12, fontStyle = FontStyle.Bold };
+            sSec.normal.textColor = cAccent;
+            sSec.padding = new RectOffset(4, 0, 5, 2);
+
+            sLbl = new GUIStyle(GUI.skin.label) { fontSize = 12 };
+            sLbl.normal.textColor = cText;
+            sLbl.padding = new RectOffset(6, 0, 2, 2);
+
+            sDimLbl = new GUIStyle(sLbl);
+            sDimLbl.normal.textColor = cDim;
+            sDimLbl.fontSize = 11;
+
+            sInput = new GUIStyle(GUI.skin.textField) { fontSize = 12 };
+            sInput.normal.background  = Tex(28, 32, 50, 255);
+            sInput.focused.background = Tex(34, 40, 62, 255);
+            sInput.normal.textColor  = cText;
+            sInput.focused.textColor = Color.white;
+            sInput.padding = new RectOffset(6, 6, 4, 4);
+        }
+
+        // Helper: 按钮式 Toggle，返回新状态
+        private bool Tog(bool val, string label, params GUILayoutOption[] opts)
+        {
+            string prefix = val ? " ✦ " : " ○ ";
+            if (GUILayout.Button(prefix + label, val ? sTogOn : sTogOff, opts))
+                return !val;
+            return val;
+        }
+
+        // Helper: 区块标题
+        private void Sec(string text)
+        {
+            GUILayout.Space(6);
+            GUILayout.Label("  " + text, sSec);
+            GUILayout.Space(1);
+        }
 
         // ============ 玩家增强 ============
         private bool enableGodMode = false;
@@ -320,70 +428,107 @@ namespace BurglinCheat
 
         public void OnGUI()
         {
-            if (enableEnemyESP || enableLootESP || enableItemESP || enablePlayerESP || enableVehicleESP) DrawESP();
-            if (!showMenu) return;
+            BuildStyles();
             GUI.color = Color.white;
-            GUI.backgroundColor = new Color(0.1f, 0.1f, 0.15f, 0.95f);
-            menuRect = GUILayout.Window(8888, menuRect, DrawMenu, "Burglin' Gnomes 漏洞总线 v2 (Insert切换)");
-            GUI.backgroundColor = Color.white;
-        }
 
-        private void DrawMenu(int windowID)
-        {
-            GUILayout.BeginHorizontal();
+            if (enableEnemyESP || enableLootESP || enableItemESP || enablePlayerESP || enableVehicleESP)
+                DrawESP();
+            if (!showMenu) return;
+
+            Event e = Event.current;
+
+            // ── 拖拽处理 ──────────────────────────────────────
+            Rect titleBarRect = new Rect(menuRect.x, menuRect.y, menuRect.width - 82, 28);
+            if (e.type == EventType.MouseDown && e.button == 0 && titleBarRect.Contains(e.mousePosition))
+            {
+                _isDragging  = true;
+                _dragOffset  = e.mousePosition - new Vector2(menuRect.x, menuRect.y);
+                e.Use();
+            }
+            if (e.type == EventType.MouseUp)   _isDragging = false;
+            if (_isDragging && e.type == EventType.MouseDrag)
+            {
+                menuRect.x = e.mousePosition.x - _dragOffset.x;
+                menuRect.y = e.mousePosition.y - _dragOffset.y;
+                e.Use();
+            }
+            menuRect.x = Mathf.Clamp(menuRect.x, 0, Screen.width  - menuRect.width);
+            menuRect.y = Mathf.Clamp(menuRect.y, 0, Screen.height - menuRect.height);
+
+            // ── 窗口背景 ──────────────────────────────────────
+            GUI.Box(menuRect, GUIContent.none, sWin);
+
+            // ── 标题栏 ────────────────────────────────────────
+            Rect title = new Rect(menuRect.x, menuRect.y, menuRect.width, 28);
+            GUI.DrawTexture(title, txTitle);
+            GUI.Label(new Rect(title.x + 10, title.y + 5, title.width - 100, 20),
+                      "⚡  Burglin' Gnomes 漏洞总线  v2", sSec);
+            if (GUI.Button(new Rect(menuRect.xMax - 78, menuRect.y + 3, 36, 22), "━", sBtnSm))
+                showMenu = false;
+            if (GUI.Button(new Rect(menuRect.xMax - 40, menuRect.y + 3, 36, 22), "╳", sBtnSm))
+                Loader.Unload();
+
+            // ── Tab 栏 ────────────────────────────────────────
+            float tw = menuRect.width / tabs.Length;
             for (int i = 0; i < tabs.Length; i++)
-                if (GUILayout.Toggle(currentTab == i, tabs[i], "Button")) currentTab = i;
-            GUILayout.EndHorizontal();
-            GUILayout.Space(8);
+            {
+                Rect tr = new Rect(menuRect.x + i * tw, menuRect.y + 30, tw, 26);
+                if (GUI.Button(tr, tabs[i], i == currentTab ? sTabOn : sTabOff))
+                    currentTab = i;
+            }
 
-            scrollPos = GUILayout.BeginScrollView(scrollPos);
+            // ── 内容区 (ScrollView) ───────────────────────────
+            Rect content = new Rect(menuRect.x + 2, menuRect.y + 58, menuRect.width - 4, menuRect.height - 88);
+            GUILayout.BeginArea(content);
+            scrollPos = GUILayout.BeginScrollView(scrollPos, false, false,
+                GUIStyle.none, GUI.skin.verticalScrollbar,
+                GUILayout.Width(content.width), GUILayout.Height(content.height));
             switch (currentTab)
             {
-                case 0: DrawTabPlayer(); break;
-                case 1: DrawTabTeleport(); break;
-                case 2: DrawTabItems(); break;
+                case 0: DrawTabPlayer();    break;
+                case 1: DrawTabTeleport();  break;
+                case 2: DrawTabItems();     break;
                 case 3: DrawTabMechanics(); break;
-                case 4: DrawTabNetwork(); break;
-                case 5: DrawTabTeammate(); break;
-                case 6: DrawTabVisual(); break;
-                case 7: DrawTabChaos(); break;
+                case 4: DrawTabNetwork();   break;
+                case 5: DrawTabTeammate();  break;
+                case 6: DrawTabVisual();    break;
+                case 7: DrawTabChaos();     break;
             }
             GUILayout.EndScrollView();
+            GUILayout.EndArea();
 
-            GUILayout.FlexibleSpace();
-            GUILayout.BeginHorizontal();
-            GUILayout.Label("载荷已注入");
-            if (GUILayout.Button("卸载", GUILayout.Width(80))) Loader.Unload();
-            GUILayout.EndHorizontal();
-
-            GUI.DragWindow();
+            // ── 状态栏 ────────────────────────────────────────
+            Rect status = new Rect(menuRect.x, menuRect.yMax - 28, menuRect.width, 28);
+            GUI.DrawTexture(status, txStatus);
+            GUI.Label(new Rect(status.x + 8, status.y + 6, status.width - 16, 18),
+                $"◈ 已注入  |  {cachedEnemies.Count} 敌  {cachedLoot.Count} 赃物  {cachedPlayers.Count} 玩家  |  [Insert] 切换",
+                sDimLbl);
         }
 
         private void DrawTabPlayer()
         {
-            GUILayout.Label("◆ 核心增益");
-            enableGodMode = GUILayout.Toggle(enableGodMode, "  上帝模式 (反射 godMode 字段+免费合成)");
-            enableInfiniteStamina = GUILayout.Toggle(enableInfiniteStamina, "  无限体力 (反射 currentStamina)");
-            enableFlightNoClip = GUILayout.Toggle(enableFlightNoClip, "  幽灵飞行+穿墙 (IJKL/U升 O降/Shift加速)");
-            enableInvisible = GUILayout.Toggle(enableInvisible, "  隐身模式 (F4 切换)");
-            if (GUILayout.Button("应用隐身设置", GUILayout.Height(22)))
+            Sec("◆ 核心增益");
+            enableGodMode         = Tog(enableGodMode,         "上帝模式  (反射 godMode 字段)");
+            enableInfiniteStamina = Tog(enableInfiniteStamina, "无限体力  (反射 currentStamina)");
+            enableFlightNoClip    = Tog(enableFlightNoClip,    "幽灵飞行 + 穿墙  (IJKL / U↑ O↓ / Shift加速)");
+            enableInvisible       = Tog(enableInvisible,       "隐身模式  (F4 切换)");
+            if (GUILayout.Button("应用隐身设置", sBtn, GUILayout.Height(26)))
             {
                 var p = GetLocalPlayer();
                 if (p != null) try { p.ToggleGraphics(!enableInvisible); } catch { }
             }
 
-            GUILayout.Space(8);
-            GUILayout.Label("◆ 速度与跳跃");
-            enableSpeedHack = GUILayout.Toggle(enableSpeedHack, "  移动速度倍率 (反射 baseSpeedLimit)");
-            GUILayout.Label($"  倍率: {speedMult:F1}x");
+            Sec("◆ 速度与跳跃");
+            enableSpeedHack = Tog(enableSpeedHack, "移动速度倍率  (反射 baseSpeedLimit)");
+            GUILayout.Label($"   倍率: {speedMult:F1}x", sLbl);
             speedMult = GUILayout.HorizontalSlider(speedMult, 1f, 8f);
-            GUILayout.Label($"  超级跳跃 (V+Space): {jumpForce:F0}");
+            GUILayout.Label($"   超级跳跃力度 (V+Space): {jumpForce:F0}", sLbl);
             jumpForce = GUILayout.HorizontalSlider(jumpForce, 10f, 80f);
-            GUILayout.Label($"  飞行速度: {flySpeed:F0}");
+            GUILayout.Label($"   飞行速度: {flySpeed:F0}", sLbl);
             flySpeed = GUILayout.HorizontalSlider(flySpeed, 5f, 50f);
 
             GUILayout.Space(8);
-            if (GUILayout.Button("立即满血 (RPC)", GUILayout.Height(28)))
+            if (GUILayout.Button("  ♥  立即满血 (SelfDamageRpc)", sBtn, GUILayout.Height(30)))
             {
                 var p = GetLocalPlayer();
                 if (p != null) try { p.Health.SelfDamageRpc(-999f); } catch { }
@@ -392,40 +537,47 @@ namespace BurglinCheat
 
         private void DrawTabTeleport()
         {
-            GUILayout.Label("◆ 目标选择");
-            teleportTargetIdx = GUILayout.SelectionGrid(teleportTargetIdx, teleportTargets, 2);
+            Sec("◆ 目标选择");
+            GUILayout.BeginHorizontal();
+            for (int i = 0; i < teleportTargets.Length; i++)
+            {
+                bool sel = i == teleportTargetIdx;
+                if (GUILayout.Button(teleportTargets[i], sel ? sTabOn : sTabOff))
+                    teleportTargetIdx = i;
+                if (i == 1) { GUILayout.EndHorizontal(); GUILayout.BeginHorizontal(); }
+            }
+            GUILayout.EndHorizontal();
 
             GUILayout.Space(6);
-            if (GUILayout.Button($"传送到「{teleportTargets[teleportTargetIdx]}」", GUILayout.Height(35)))
+            if (GUILayout.Button($"  ➤  传送到「{teleportTargets[teleportTargetIdx]}」", sBtn, GUILayout.Height(34)))
             {
                 var p = GetLocalPlayer();
                 if (p != null) Teleport(p, GetSelectedTeleportPos(p));
             }
 
-            GUILayout.Space(10);
-            GUILayout.Label("◆ 路径点 (F1/F2/F3 保存，Shift+F1/F2/F3 跳回)");
+            Sec("◆ 路径点 (F1/F2/F3 保存，Shift+F1/F2/F3 跳回)");
             GUILayout.BeginHorizontal();
-            if (GUILayout.Button($"槽1 {(savedPos1.HasValue ? "✓" : "—")}")) { var p = GetLocalPlayer(); if (p != null) savedPos1 = p.transform.position; }
-            if (GUILayout.Button("回跳1") && savedPos1.HasValue) { var p = GetLocalPlayer(); if (p != null) Teleport(p, savedPos1.Value); }
+            if (GUILayout.Button($"  📍  槽1 {(savedPos1.HasValue ? "✓" : "—")}", sBtnSm)) { var p = GetLocalPlayer(); if (p != null) savedPos1 = p.transform.position; }
+            if (GUILayout.Button("  ⤷  跳回槽1", sBtnSm) && savedPos1.HasValue) { var p = GetLocalPlayer(); if (p != null) Teleport(p, savedPos1.Value); }
             GUILayout.EndHorizontal();
             GUILayout.BeginHorizontal();
-            if (GUILayout.Button($"槽2 {(savedPos2.HasValue ? "✓" : "—")}")) { var p = GetLocalPlayer(); if (p != null) savedPos2 = p.transform.position; }
-            if (GUILayout.Button("回跳2") && savedPos2.HasValue) { var p = GetLocalPlayer(); if (p != null) Teleport(p, savedPos2.Value); }
+            if (GUILayout.Button($"  📍  槽2 {(savedPos2.HasValue ? "✓" : "—")}", sBtnSm)) { var p = GetLocalPlayer(); if (p != null) savedPos2 = p.transform.position; }
+            if (GUILayout.Button("  ⤷  跳回槽2", sBtnSm) && savedPos2.HasValue) { var p = GetLocalPlayer(); if (p != null) Teleport(p, savedPos2.Value); }
             GUILayout.EndHorizontal();
             GUILayout.BeginHorizontal();
-            if (GUILayout.Button($"槽3 {(savedPos3.HasValue ? "✓" : "—")}")) { var p = GetLocalPlayer(); if (p != null) savedPos3 = p.transform.position; }
-            if (GUILayout.Button("回跳3") && savedPos3.HasValue) { var p = GetLocalPlayer(); if (p != null) Teleport(p, savedPos3.Value); }
+            if (GUILayout.Button($"  📍  槽3 {(savedPos3.HasValue ? "✓" : "—")}", sBtnSm)) { var p = GetLocalPlayer(); if (p != null) savedPos3 = p.transform.position; }
+            if (GUILayout.Button("  ⤷  跳回槽3", sBtnSm) && savedPos3.HasValue) { var p = GetLocalPlayer(); if (p != null) Teleport(p, savedPos3.Value); }
             GUILayout.EndHorizontal();
 
             GUILayout.Space(10);
-            if (GUILayout.Button("传送到摄像机指向位置 (10米外)", GUILayout.Height(28)))
+            if (GUILayout.Button("  🎯  传送到摄像机指向位置 (10米外)", sBtn, GUILayout.Height(28)))
             {
                 var p = GetLocalPlayer();
                 if (p != null && Camera.main != null)
                     Teleport(p, Camera.main.transform.position + Camera.main.transform.forward * 10f);
             }
 
-            if (GUILayout.Button("万象天引：拉取所有赃物到面前", GUILayout.Height(28)))
+            if (GUILayout.Button("  ☄  万象天引：拉取所有赃物到面前", sBtn, GUILayout.Height(28)))
             {
                 if (Camera.main != null)
                 {
@@ -500,48 +652,47 @@ namespace BurglinCheat
 
             bool isHost = false;
             try { isHost = NetworkManager.Singleton != null && (NetworkManager.Singleton.IsServer || NetworkManager.Singleton.IsHost); } catch { }
-            GUILayout.Label(isHost ? "● 主机模式：直接 SpawnItem (推荐)" : "○ 客户端模式：仅 PlayerWantsToTakeItemRpc 通道 (受限)");
+            GUILayout.Label(isHost ? "  ● 主机模式：直接 SpawnItem (推荐)" : "  ○ 客户端模式：仅 RPC 通道 (受限)", isHost ? sSec : sDimLbl);
 
             GUILayout.Space(4);
-            spawnIntoInventory = GUILayout.Toggle(spawnIntoInventory, "  生成后自动收入背包 (仅主机)");
-            GUILayout.Label($"  数量: {itemCount}");
+            spawnIntoInventory = Tog(spawnIntoInventory, "生成后自动收入背包 (仅主机)");
+            GUILayout.Label($"   数量: {itemCount}", sLbl);
             itemCount = (int)GUILayout.HorizontalSlider(itemCount, 1, 99);
 
             GUILayout.Space(6);
             GUILayout.BeginHorizontal();
-            GUILayout.Label("过滤:", GUILayout.Width(40));
-            itemFilter = GUILayout.TextField(itemFilter ?? "", GUILayout.Width(180));
-            if (GUILayout.Button("刷新清单", GUILayout.Width(80))) cachedItemNames = null;
+            GUILayout.Label("  过滤:", sLbl, GUILayout.Width(50));
+            itemFilter = GUILayout.TextField(itemFilter ?? "", sInput);
+            if (GUILayout.Button("刷新", sBtnSm, GUILayout.Width(52))) cachedItemNames = null;
             GUILayout.EndHorizontal();
 
             GUILayout.Space(4);
             string[] names = GetItemNames(p.Inventory);
-            GUILayout.Label($"◆ 物品库 ({names.Length} 项)");
+            Sec($"◆ 物品库 ({names.Length} 项)");
 
-            itemScrollPos = GUILayout.BeginScrollView(itemScrollPos, GUILayout.Height(280));
+            itemScrollPos = GUILayout.BeginScrollView(itemScrollPos, GUILayout.Height(260));
             string filt = (itemFilter ?? "").Trim().ToLower();
             int shown = 0;
             foreach (var name in names)
             {
                 if (name == null) continue;
                 if (filt.Length > 0 && !name.ToLower().Contains(filt)) continue;
-                if (GUILayout.Button(name, GUILayout.Height(22)))
+                if (GUILayout.Button(name, sBtnSm, GUILayout.Height(22)))
                     SpawnItemForLocal(name);
                 shown++;
-                if (shown > 200) { GUILayout.Label("...更多请用过滤"); break; }
+                if (shown > 200) { GUILayout.Label("  ...更多请用过滤", sDimLbl); break; }
             }
             GUILayout.EndScrollView();
 
-            GUILayout.Space(8);
-            GUILayout.Label("◆ 快捷批量");
+            Sec("◆ 快捷批量");
             GUILayout.BeginHorizontal();
-            if (GUILayout.Button("全物品各 1 个"))
+            if (GUILayout.Button("全物品各 1 个", sBtn))
             {
                 int saved = itemCount; itemCount = 1;
                 foreach (var n in names) if (n != null) SpawnItemForLocal(n);
                 itemCount = saved;
             }
-            if (GUILayout.Button("清空背包"))
+            if (GUILayout.Button("清空背包", sBtn))
             {
                 try
                 {
@@ -551,9 +702,8 @@ namespace BurglinCheat
             }
             GUILayout.EndHorizontal();
 
-            GUILayout.Space(6);
-            GUILayout.Label("◆ 资源储量直接修改 (主机有效)");
-            if (GUILayout.Button("将所有 GnomiumDeposit 储量+9999", GUILayout.Height(26)))
+            Sec("◆ 资源储量直接修改 (主机有效)");
+            if (GUILayout.Button("  ⬆  将所有 GnomiumDeposit 储量 +9999", sBtn, GUILayout.Height(26)))
             {
                 foreach (var d in cachedDeposits)
                 {
@@ -569,23 +719,23 @@ namespace BurglinCheat
 
         private void DrawTabMechanics()
         {
-            GUILayout.Label("◆ 时间与世界");
-            GUILayout.Label($"  目标时间: {targetTime:F2} (0=黎明 0.5=正午 1=午夜)");
+            Sec("◆ 时间与世界");
+            GUILayout.Label($"   目标时间: {targetTime:F2}   (0=黎明  0.5=正午  1=午夜)", sLbl);
             targetTime = GUILayout.HorizontalSlider(targetTime, 0f, 1f);
             GUILayout.BeginHorizontal();
-            if (GUILayout.Button("设置时间")) { var prog = GameProgressionManager.Instance; if (prog != null) try { prog.SetGameTimeNormalized(targetTime); } catch { } }
-            freezeTime = GUILayout.Toggle(freezeTime, " 锁定时间");
+            if (GUILayout.Button("设置时间", sBtn)) { var prog = GameProgressionManager.Instance; if (prog != null) try { prog.SetGameTimeNormalized(targetTime); } catch { } }
+            freezeTime = Tog(freezeTime, "锁定时间");
             GUILayout.EndHorizontal();
 
+            GUILayout.Space(4);
             GUILayout.BeginHorizontal();
-            if (GUILayout.Button("开局")) { var prog = GameProgressionManager.Instance; if (prog != null) try { prog.StartGameRpc(); } catch { } }
-            if (GUILayout.Button("结束本局")) { var prog = GameProgressionManager.Instance; if (prog != null) try { prog.EndGameRpc(); } catch { } }
-            if (GUILayout.Button("重置游戏")) { var prog = GameProgressionManager.Instance; if (prog != null) try { prog.ResetGame(); } catch { } }
+            if (GUILayout.Button("▶ 开局",  sBtn)) { var prog = GameProgressionManager.Instance; if (prog != null) try { prog.StartGameRpc(); } catch { } }
+            if (GUILayout.Button("■ 结束",  sBtn)) { var prog = GameProgressionManager.Instance; if (prog != null) try { prog.EndGameRpc(); } catch { } }
+            if (GUILayout.Button("↺ 重置",  sBtn)) { var prog = GameProgressionManager.Instance; if (prog != null) try { prog.ResetGame(); } catch { } }
             GUILayout.EndHorizontal();
 
-            GUILayout.Space(10);
-            GUILayout.Label("◆ 任务系统");
-            if (GUILayout.Button("一键完成所有任务 (DebugCompleteTask)", GUILayout.Height(30)))
+            Sec("◆ 任务系统");
+            if (GUILayout.Button("  ✔  一键完成所有任务 (DebugCompleteTask)", sBtn, GUILayout.Height(30)))
             {
                 var taskMgr = FindObjectOfType<PlayerTaskManager>();
                 if (taskMgr != null)
@@ -599,13 +749,12 @@ namespace BurglinCheat
                 }
             }
 
-            GUILayout.Space(10);
-            GUILayout.Label("◆ AI 控制");
-            if (GUILayout.Button("全图 AI 临时停机 (enabled=false)", GUILayout.Height(28)))
+            Sec("◆ AI 控制");
+            if (GUILayout.Button("  ⏸  全图 AI 临时停机", sBtn, GUILayout.Height(28)))
             {
                 foreach (var ai in cachedEnemiesAI) if (ai != null) ai.enabled = false;
             }
-            if (GUILayout.Button("永久 Despawn 所有敌人 (AiDirector)", GUILayout.Height(28)))
+            if (GUILayout.Button("  ✕  永久 Despawn 所有敌人 (AiDirector)", sBtn, GUILayout.Height(28)))
             {
                 var dir = FindObjectOfType<AiDirector>();
                 if (dir != null)
@@ -618,7 +767,7 @@ namespace BurglinCheat
                     }
                 }
             }
-            if (GUILayout.Button("捆绑全图敌人 (SetTiedRpc)", GUILayout.Height(28)))
+            if (GUILayout.Button("  ⛓  捆绑全图敌人 (SetTiedRpc)", sBtn, GUILayout.Height(28)))
             {
                 foreach (var e in cachedEnemies)
                 {
@@ -628,9 +777,8 @@ namespace BurglinCheat
                 }
             }
 
-            GUILayout.Space(10);
-            GUILayout.Label("◆ 载具改装");
-            if (GUILayout.Button("将所有载具调到极速 (maxSpeed=9999)", GUILayout.Height(28)))
+            Sec("◆ 载具改装");
+            if (GUILayout.Button("  🚗  极速改装所有载具 (maxSpeed=9999)", sBtn, GUILayout.Height(28)))
             {
                 foreach (var car in cachedVehicles)
                     if (car != null) { car.maxSpeed = 9999f; car.maxMotorTorque = 25000f; }
@@ -639,29 +787,26 @@ namespace BurglinCheat
 
         private void DrawTabNetwork()
         {
-            GUILayout.Label("◆ RPC Everyone 漏洞利用");
-
-            if (GUILayout.Button("秒杀全图怪物 (TakeDamageRpc)", GUILayout.Height(30)))
+            Sec("◆ RPC Everyone 漏洞利用");
+            if (GUILayout.Button("  ⚔  秒杀全图怪物 (TakeDamageRpc)", sBtn, GUILayout.Height(30)))
             {
                 foreach (var e in cachedEnemies)
                     try { if (!e.Dead) e.TakeDamageRpc(99999f); } catch { }
             }
 
-            if (GUILayout.Button("一键提交所有储量到大本营", GUILayout.Height(30)))
+            if (GUILayout.Button("  📦  一键提交所有储量到大本营", sBtn, GUILayout.Height(30)))
             {
                 foreach (var d in cachedDeposits)
                     try { d.DepositResourcesToStockpileRpc(); } catch { }
             }
-
-            if (GUILayout.Button("强制结束本局 (EndGameRpc)", GUILayout.Height(28)))
+            if (GUILayout.Button("  ■  强制结束本局 (EndGameRpc)", sBtn, GUILayout.Height(28)))
             {
                 var prog = FindObjectOfType<GameProgressionManager>();
                 if (prog != null) try { prog.EndGameRpc(); } catch { }
             }
 
-            GUILayout.Space(8);
-            GUILayout.Label("◆ 玩家间漏洞 (谨慎！)");
-            if (GUILayout.Button("【偷】队友物品空手套白狼", GUILayout.Height(28)))
+            Sec("◆ 玩家间漏洞 (谨慎！)");
+            if (GUILayout.Button("  💰  【偷】队友物品空手套白狼", sBtn, GUILayout.Height(28)))
             {
                 var me = GetLocalPlayer();
                 if (me != null && me.Inventory != null)
@@ -682,7 +827,7 @@ namespace BurglinCheat
                 }
             }
 
-            if (GUILayout.Button("【恶搞】肢解所有非本机玩家", GUILayout.Height(28)))
+            if (GUILayout.Button("  💀  【恶搞】肢解所有非本机玩家", sBtn, GUILayout.Height(28)))
             {
                 foreach (var p in cachedPlayers)
                 {
@@ -695,7 +840,7 @@ namespace BurglinCheat
                 }
             }
 
-            if (GUILayout.Button("【恶搞】强制丢光所有玩家背包", GUILayout.Height(28)))
+            if (GUILayout.Button("  🎒  【恶搞】强制丢光所有玩家背包", sBtn, GUILayout.Height(28)))
             {
                 foreach (var p in cachedPlayers)
                 {
@@ -707,9 +852,8 @@ namespace BurglinCheat
 
         private void DrawTabTeammate()
         {
-            GUILayout.Label("◆ 救助队友 (RespawnRpc Everyone)");
-
-            if (GUILayout.Button("一键复活所有死亡队友 (RespawnRpc)", GUILayout.Height(32)))
+            Sec("◆ 救助队友 (RespawnRpc Everyone)");
+            if (GUILayout.Button("  ↺  一键复活所有死亡队友 (RespawnRpc)", sBtn, GUILayout.Height(32)))
             {
                 foreach (var p in cachedPlayers)
                 {
@@ -718,7 +862,7 @@ namespace BurglinCheat
                 }
             }
 
-            if (GUILayout.Button("一键满血所有队友", GUILayout.Height(28)))
+            if (GUILayout.Button("  ♥  一键满血所有队友", sBtn, GUILayout.Height(28)))
             {
                 foreach (var p in cachedPlayers)
                 {
@@ -726,8 +870,7 @@ namespace BurglinCheat
                     try { p.Health.SelfDamageRpc(-999f); } catch { }
                 }
             }
-
-            if (GUILayout.Button("解除所有队友捆绑状态", GUILayout.Height(28)))
+            if (GUILayout.Button("  🔓  解除所有队友捆绑状态", sBtn, GUILayout.Height(28)))
             {
                 foreach (var p in cachedPlayers)
                 {
@@ -737,7 +880,7 @@ namespace BurglinCheat
                 }
             }
 
-            if (GUILayout.Button("呼叫医疗终端复活全员 (RespawnPlayersRpc)", GUILayout.Height(28)))
+            if (GUILayout.Button("  🏥  呼叫医疗终端复活全员", sBtn, GUILayout.Height(28)))
             {
                 var med = FindObjectOfType<MedicalTerminal>();
                 if (med != null)
@@ -750,33 +893,32 @@ namespace BurglinCheat
 
         private void DrawTabVisual()
         {
-            GUILayout.Label("◆ ESP 透视");
-            enableEnemyESP = GUILayout.Toggle(enableEnemyESP, "  敌人透视 (HP+距离)");
-            enableLootESP = GUILayout.Toggle(enableLootESP, "  存箱透视");
-            enableItemESP = GUILayout.Toggle(enableItemESP, "  赃物透视");
-            enablePlayerESP = GUILayout.Toggle(enablePlayerESP, "  队友透视");
-            enableVehicleESP = GUILayout.Toggle(enableVehicleESP, "  载具透视");
-            GUILayout.Label($"  最大显示距离: {espMaxDistance:F0}m");
+            Sec("◆ ESP 透视");
+            enableEnemyESP   = Tog(enableEnemyESP,   "敌人透视  (HP + 距离)");
+            enableLootESP    = Tog(enableLootESP,    "存箱透视");
+            enableItemESP    = Tog(enableItemESP,    "赃物透视");
+            enablePlayerESP  = Tog(enablePlayerESP,  "队友透视");
+            enableVehicleESP = Tog(enableVehicleESP, "载具透视");
+            GUILayout.Space(4);
+            GUILayout.Label($"   最大显示距离: {espMaxDistance:F0}m", sLbl);
             espMaxDistance = GUILayout.HorizontalSlider(espMaxDistance, 20f, 300f);
         }
 
         private void DrawTabChaos()
         {
-            GUILayout.Label("◆ 混沌引擎 (谨慎使用)");
-
-            if (GUILayout.Button("引爆全图所有手雷 (InstantExplodeRpc)", GUILayout.Height(30)))
+            Sec("◆ 混沌引擎 (谨慎使用)");
+            if (GUILayout.Button("  💥  引爆全图所有手雷 (InstantExplodeRpc)", sBtn, GUILayout.Height(30)))
             {
                 foreach (var g in cachedGrenades)
                     if (g != null) try { g.InstantExplodeRpc(); } catch { }
             }
 
-            if (GUILayout.Button("点燃全图所有手雷引线 (StartFuseRpc)", GUILayout.Height(28)))
+            if (GUILayout.Button("  🔥  点燃全图所有手雷引线 (StartFuseRpc)", sBtn, GUILayout.Height(28)))
             {
                 foreach (var g in cachedGrenades)
                     if (g != null) try { g.StartFuseRpc(); } catch { }
             }
-
-            if (GUILayout.Button("洪水：触发所有马桶喷涌 (PlayFloodRpc)", GUILayout.Height(28)))
+            if (GUILayout.Button("  🚽  洪水：触发所有马桶喷涌 (PlayFloodRpc)", sBtn, GUILayout.Height(28)))
             {
                 foreach (var t in cachedToilets)
                 {
@@ -786,7 +928,7 @@ namespace BurglinCheat
                 }
             }
 
-            if (GUILayout.Button("启动所有龙卷风传送门 (StartVortexRpc)", GUILayout.Height(28)))
+            if (GUILayout.Button("  🌪  启动所有龙卷风传送门 (StartVortexRpc)", sBtn, GUILayout.Height(28)))
             {
                 foreach (var h in FindObjectsOfType<GnomeHouse>())
                 {
@@ -794,8 +936,7 @@ namespace BurglinCheat
                     try { h.StartVortexRpc(h.transform.position, 1); } catch { }
                 }
             }
-
-            if (GUILayout.Button("捆绑全图玩家 (真.团灭)", GUILayout.Height(28)))
+            if (GUILayout.Button("  ⛓  捆绑全图玩家 (真.团灭)", sBtn, GUILayout.Height(28)))
             {
                 foreach (var p in cachedPlayers)
                 {
@@ -805,7 +946,7 @@ namespace BurglinCheat
                 }
             }
 
-            if (GUILayout.Button("毁灭所有花园侏儒 (DestroyGnomeRpc)", GUILayout.Height(28)))
+            if (GUILayout.Button("  🗿  毁灭所有花园侏儒 (DestroyGnomeRpc)", sBtn, GUILayout.Height(28)))
             {
                 foreach (var g in FindObjectsOfType<GardenGnome>())
                 {
@@ -816,86 +957,94 @@ namespace BurglinCheat
             }
         }
 
+        // ESP 标签绘制辅助
+        private GUIStyle _espStyleRed, _espStyleCyan, _espStyleYellow, _espStyleGreen, _espStyleOrange;
+        private void BuildESPStyles()
+        {
+            if (_espStyleRed != null) return;
+            void MkESP(ref GUIStyle s, Color col)
+            {
+                s = new GUIStyle(GUI.skin.label) { fontSize = 11, fontStyle = FontStyle.Bold };
+                s.normal.textColor = col;
+            }
+            MkESP(ref _espStyleRed,    new Color(1f, 0.3f, 0.3f));
+            MkESP(ref _espStyleCyan,   new Color(0f, 0.9f, 1f));
+            MkESP(ref _espStyleYellow, new Color(1f, 0.9f, 0.2f));
+            MkESP(ref _espStyleGreen,  new Color(0.2f, 1f, 0.4f));
+            MkESP(ref _espStyleOrange, new Color(1f, 0.55f, 0.1f));
+        }
+
         private void DrawESP()
         {
+            BuildESPStyles();
             if (Camera.main == null) return;
             Vector3 camPos = Camera.main.transform.position;
 
             if (enableEnemyESP)
-            {
                 foreach (var enemy in cachedEnemies)
                 {
                     if (enemy == null || enemy.Dead) continue;
-                    Vector3 pos = enemy.transform.position;
+                    Vector3 pos = enemy.transform.position + Vector3.up * 1.5f;
                     float dist = Vector3.Distance(camPos, pos);
                     if (dist > espMaxDistance) continue;
                     Vector3 w2s = Camera.main.WorldToScreenPoint(pos);
                     if (w2s.z <= 0f) continue;
-                    GUI.color = Color.red;
-                    GUI.Label(new Rect(w2s.x - 25, Screen.height - w2s.y, 110, 40), $"[敌] {dist:F0}m\nHP:{(int)enemy.Health}");
+                    GUI.Label(new Rect(w2s.x - 30, Screen.height - w2s.y, 130, 36),
+                              $"⚔ 敌  {dist:F0}m\nHP {(int)enemy.Health}", _espStyleRed);
                 }
-            }
 
             if (enableLootESP)
-            {
                 foreach (var d in cachedDeposits)
                 {
                     if (d == null) continue;
-                    Vector3 pos = d.transform.position;
+                    Vector3 pos = d.transform.position + Vector3.up;
                     float dist = Vector3.Distance(camPos, pos);
                     if (dist > espMaxDistance) continue;
                     Vector3 w2s = Camera.main.WorldToScreenPoint(pos);
                     if (w2s.z <= 0f) continue;
-                    GUI.color = Color.cyan;
-                    GUI.Label(new Rect(w2s.x - 30, Screen.height - w2s.y, 110, 40), $"[存箱] {dist:F0}m\n储量:{d.DepositedGnomium}");
+                    GUI.Label(new Rect(w2s.x - 30, Screen.height - w2s.y, 130, 36),
+                              $"📦 存箱  {dist:F0}m\n{d.DepositedGnomium}", _espStyleCyan);
                 }
-            }
 
             if (enableItemESP)
-            {
                 foreach (var loot in cachedLoot)
                 {
                     if (loot == null || loot.carriedByBob) continue;
-                    Vector3 pos = loot.transform.position;
+                    Vector3 pos = loot.transform.position + Vector3.up * 0.5f;
                     float dist = Vector3.Distance(camPos, pos);
                     if (dist > espMaxDistance) continue;
                     Vector3 w2s = Camera.main.WorldToScreenPoint(pos);
                     if (w2s.z <= 0f) continue;
-                    GUI.color = Color.yellow;
-                    GUI.Label(new Rect(w2s.x - 30, Screen.height - w2s.y, 110, 40), $"[赃] {dist:F0}m\n{loot.ItemType}");
+                    GUI.Label(new Rect(w2s.x - 30, Screen.height - w2s.y, 130, 36),
+                              $"✦ 赃物  {dist:F0}m\n{loot.ItemType}", _espStyleYellow);
                 }
-            }
 
             if (enablePlayerESP)
-            {
                 foreach (var p in cachedPlayers)
                 {
                     if (p == null || p.IsLocalPlayer) continue;
-                    Vector3 pos = p.transform.position;
+                    Vector3 pos = p.transform.position + Vector3.up * 2f;
                     float dist = Vector3.Distance(camPos, pos);
                     if (dist > espMaxDistance) continue;
                     Vector3 w2s = Camera.main.WorldToScreenPoint(pos);
                     if (w2s.z <= 0f) continue;
-                    GUI.color = Color.green;
                     string hp = p.Health != null ? ((int)p.Health.Health).ToString() : "?";
-                    GUI.Label(new Rect(w2s.x - 30, Screen.height - w2s.y, 110, 40), $"[队] {dist:F0}m\nHP:{hp}");
+                    GUI.Label(new Rect(w2s.x - 30, Screen.height - w2s.y, 130, 36),
+                              $"👤 队友  {dist:F0}m\nHP {hp}", _espStyleGreen);
                 }
-            }
 
             if (enableVehicleESP)
-            {
                 foreach (var v in cachedVehicles)
                 {
                     if (v == null) continue;
-                    Vector3 pos = v.transform.position;
+                    Vector3 pos = v.transform.position + Vector3.up;
                     float dist = Vector3.Distance(camPos, pos);
                     if (dist > espMaxDistance) continue;
                     Vector3 w2s = Camera.main.WorldToScreenPoint(pos);
                     if (w2s.z <= 0f) continue;
-                    GUI.color = new Color(1f, 0.5f, 0f);
-                    GUI.Label(new Rect(w2s.x - 25, Screen.height - w2s.y, 100, 25), $"[车] {dist:F0}m");
+                    GUI.Label(new Rect(w2s.x - 30, Screen.height - w2s.y, 110, 24),
+                              $"🚗 载具  {dist:F0}m", _espStyleOrange);
                 }
-            }
         }
     }
 }
