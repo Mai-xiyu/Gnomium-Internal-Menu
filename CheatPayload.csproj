@@ -4,6 +4,7 @@
     <TargetFramework>netstandard2.1</TargetFramework>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+    <DefaultItemExcludes>Launcher\**;$(DefaultItemExcludes)</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>

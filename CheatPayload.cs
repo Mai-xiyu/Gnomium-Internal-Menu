@@ -14,11 +14,18 @@ namespace BurglinCheat
 
         public static void Init()
         {
-            if (LoadObject == null)
+            try
             {
-                LoadObject = new GameObject("BurglinCheat_Loader");
-                LoadObject.AddComponent<CheatMain>();
-                GameObject.DontDestroyOnLoad(LoadObject);
+                if (LoadObject == null)
+                {
+                    LoadObject = new GameObject("BurglinCheat_Loader");
+                    GameObject.DontDestroyOnLoad(LoadObject);
+                    LoadObject.AddComponent<CheatMain>();
+                }
+            }
+            catch (Exception ex)
+            {
+                System.IO.File.WriteAllText(System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "CheatInject_FailLog.txt"), ex.ToString());
             }
         }
 

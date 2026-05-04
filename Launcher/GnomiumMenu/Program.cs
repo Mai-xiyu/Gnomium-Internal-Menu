@@ -2,14 +2,38 @@
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
+using System.Security.Principal;
 using System.Threading;
 
 namespace GnomiumMenu
 {
     class Program
     {
+        static bool IsAdministrator()
+        {
+            var identity = WindowsIdentity.GetCurrent();
+            var principal = new WindowsPrincipal(identity);
+            return principal.IsInRole(WindowsBuiltInRole.Administrator);
+        }
+
         static void Main(string[] args)
         {
+            if (!IsAdministrator())
+            {
+                Console.WriteLine("请求管理员权限以注入游戏进程...");
+                var processInfo = new ProcessStartInfo(Environment.ProcessPath)
+                {
+                    UseShellExecute = true,
+                    Verb = "runas"
+                };
+                try
+                {
+                    Process.Start(processInfo);
+                }
+                catch { }
+                return;
+            }
+
             Console.Title = "Gnomium Internal Menu - Injector";
             Console.ForegroundColor = ConsoleColor.Cyan;
             Console.WriteLine(@"
@@ -36,8 +60,8 @@ namespace GnomiumMenu
             Console.ResetColor();
 
             Console.WriteLine("[2] 准备释放负载...");
-            string tempDir = Path.Combine(Path.GetTempPath(), "GnomiumLauncher_" + Guid.NewGuid().ToString().Substring(0, 8));
-            Directory.CreateDirectory(tempDir);
+            string tempDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "InjectorCache");
+            if (!Directory.Exists(tempDir)) Directory.CreateDirectory(tempDir);
 
             try
             {
