@@ -39,10 +39,10 @@ namespace BurglinCheat
     {
         // ============ UI 状态 ============
         private bool showMenu = true;
-        private Rect menuRect = new Rect(30, 30, 520, 640);
+        private Rect menuRect = new Rect(30, 30, 720, 500); // 加宽，适合侧边栏
         private Vector2 scrollPos;
         private int currentTab = 0;
-        private string[] tabs = { "玩家", "传送", "物品", "机制", "网络", "队友", "视觉", "混沌" };
+        private string[] tabs = { "玩家 (Player)", "传送 (Teleport)", "物品 (Items)", "机制 (Logic)", "网络 (Network)", "队友 (Team)", "视觉 (Visual)", "混沌 (Chaos)" };
         private bool _isDragging = false;
         private Vector2 _dragOffset;
 
@@ -50,8 +50,9 @@ namespace BurglinCheat
         private bool _stylesReady = false;
         private GUIStyle sWin, sTabOn, sTabOff, sBtn, sBtnSm, sTogOn, sTogOff;
         private GUIStyle sLbl, sSec, sInput, sDimLbl;
-        private Texture2D txBg, txTitle, txTabOn, txTabOff, txTabHov;
+        private Texture2D txBg, txSidebar, txTabOn, txTabOff, txTabHov;
         private Texture2D txBtn, txBtnHov, txBtnAct, txTogOn, txTogOff, txStatus;
+        private Texture2D txAccent;
 
         private Texture2D Tex(int r, int g, int b, int a = 255)
         {
@@ -66,13 +67,13 @@ namespace BurglinCheat
             var s = new GUIStyle(GUI.skin.button)
             {
                 fontSize = fs,
-                padding = new RectOffset(8, 8, 5, 5),
-                border = new RectOffset(1, 1, 1, 1),
-                alignment = TextAnchor.MiddleCenter
+                padding = new RectOffset(10, 10, 6, 6),
+                border = new RectOffset(0, 0, 0, 0),
+                alignment = TextAnchor.MiddleLeft // 左对齐更具现代感
             };
             s.normal.background = norm;   s.normal.textColor = textNorm;
             s.hover.background  = hov;    s.hover.textColor  = Color.white;
-            s.active.background = act;    s.active.textColor = new Color(0f, 0.9f, 1f);
+            s.active.background = act;    s.active.textColor = new Color(0.8f, 0.95f, 1f);
             s.onNormal.background = norm; s.onNormal.textColor = textNorm;
             return s;
         }
@@ -82,42 +83,50 @@ namespace BurglinCheat
             if (_stylesReady) return;
             _stylesReady = true;
 
-            txBg     = Tex(13, 15, 24, 248);
-            txTitle  = Tex( 9, 10, 18, 255);
-            txTabOn  = Tex( 0, 90,150, 220);
-            txTabOff = Tex(20, 23, 36, 255);
-            txTabHov = Tex(32, 38, 58, 255);
-            txBtn    = Tex(26, 30, 46, 255);
-            txBtnHov = Tex(38, 45, 68, 255);
-            txBtnAct = Tex( 0,110,175, 200);
-            txTogOn  = Tex( 0,175,240, 230);
-            txTogOff = Tex(28, 32, 48, 255);
-            txStatus = Tex( 9, 10, 18, 255);
+            // 极简玻璃拟态色盘 (Acrylic Dark Theme)
+            txBg      = Tex(12, 12, 16, 235);    // 主背景，深邃半透明
+            txSidebar = Tex(8, 8, 11, 245);      // 侧边栏更深
+            txTabOn   = Tex(30, 35, 45, 200);    // 当前选中 Tab
+            txTabOff  = Tex(0, 0, 0, 0);         // 未选中全透明
+            txTabHov  = Tex(20, 25, 35, 150);    // 鼠标悬停
 
-            var cText   = new Color(0.82f, 0.87f, 0.97f);
-            var cDim    = new Color(0.50f, 0.55f, 0.65f);
-            var cAccent = new Color(0f, 0.76f, 1f);
+            txBtn     = Tex(22, 26, 38, 200);   // 常规按钮
+            txBtnHov  = Tex(35, 45, 65, 220);   // 按钮悬停
+            txBtnAct  = Tex(0, 140, 255, 220);   // 亮蓝按下状态
+
+            txTogOn   = Tex(0, 175, 240, 200);   // 开关激活，赛博蓝
+            txTogOff  = Tex(20, 22, 30, 180);    // 开关关闭，暗灰
+
+            txStatus  = Tex(6, 6, 8, 250);       // 底部状态栏
+            txAccent  = Tex(0, 180, 255, 255);   // 主题强调色(细线使用)
+
+            // 文字颜色
+            var cText   = new Color(0.85f, 0.9f, 0.95f);
+            var cDim    = new Color(0.55f, 0.6f, 0.7f);
+            var cAccent = new Color(0.0f, 0.85f, 1f);
 
             sWin = new GUIStyle(GUI.skin.box);
             sWin.normal.background = txBg;
             sWin.border = new RectOffset(0, 0, 0, 0);
-            sWin.padding = new RectOffset(0, 0, 0, 0);
 
-            sTabOn  = CloneBtn(txTabOn,  txTabOn,  txTabOn,  cAccent, 12);
+            sTabOn  = CloneBtn(txTabOn,  txTabOn,  txTabOn,  Color.white, 13);
             sTabOn.fontStyle = FontStyle.Bold;
-            sTabOff = CloneBtn(txTabOff, txTabHov, txTabHov, cDim,    11);
-
+            sTabOff = CloneBtn(txTabOff, txTabHov, txTabOn,  cDim, 13);
+            
             sBtn   = CloneBtn(txBtn, txBtnHov, txBtnAct, cText, 12);
+            sBtn.alignment = TextAnchor.MiddleCenter; // 普通按钮居中
+            
             sBtnSm = CloneBtn(txBtn, txBtnHov, txBtnAct, cText, 11);
+            sBtnSm.alignment = TextAnchor.MiddleCenter;
             sBtnSm.padding = new RectOffset(5, 5, 4, 4);
 
-            sTogOn  = CloneBtn(txTogOn,  txBtnHov, txBtnAct, new Color(0.02f, 0.02f, 0.05f), 12);
+            sTogOn  = CloneBtn(txTogOn,  txBtnHov, txBtnAct, new Color(0.05f, 0.1f, 0.15f), 12);
             sTogOn.fontStyle  = FontStyle.Bold;
             sTogOff = CloneBtn(txTogOff, txBtnHov, txTogOn,  cDim, 12);
 
-            sSec = new GUIStyle(GUI.skin.label) { fontSize = 12, fontStyle = FontStyle.Bold };
+            sSec = new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Bold };
             sSec.normal.textColor = cAccent;
-            sSec.padding = new RectOffset(4, 0, 5, 2);
+            sSec.padding = new RectOffset(4, 0, 8, 4);
 
             sLbl = new GUIStyle(GUI.skin.label) { fontSize = 12 };
             sLbl.normal.textColor = cText;
@@ -128,28 +137,28 @@ namespace BurglinCheat
             sDimLbl.fontSize = 11;
 
             sInput = new GUIStyle(GUI.skin.textField) { fontSize = 12 };
-            sInput.normal.background  = Tex(28, 32, 50, 255);
-            sInput.focused.background = Tex(34, 40, 62, 255);
+            sInput.normal.background  = Tex(18, 20, 30, 200);
+            sInput.focused.background = Tex(30, 35, 50, 220);
             sInput.normal.textColor  = cText;
             sInput.focused.textColor = Color.white;
-            sInput.padding = new RectOffset(6, 6, 4, 4);
+            sInput.padding = new RectOffset(8, 8, 6, 6);
         }
 
         // Helper: 按钮式 Toggle，返回新状态
         private bool Tog(bool val, string label, params GUILayoutOption[] opts)
         {
-            string prefix = val ? " ✦ " : " ○ ";
+            string prefix = val ? " ✔ " : " ◯ ";
             if (GUILayout.Button(prefix + label, val ? sTogOn : sTogOff, opts))
                 return !val;
             return val;
         }
 
-        // Helper: 区块标题
+        // Helper: 区块标题 (下方带点缀边距)
         private void Sec(string text)
         {
-            GUILayout.Space(6);
-            GUILayout.Label("  " + text, sSec);
-            GUILayout.Space(1);
+            GUILayout.Space(8);
+            GUILayout.Label(" " + text, sSec);
+            GUILayout.Space(2);
         }
 
         // ============ 玩家增强 ============
@@ -437,8 +446,8 @@ namespace BurglinCheat
 
             Event e = Event.current;
 
-            // ── 拖拽处理 ──────────────────────────────────────
-            Rect titleBarRect = new Rect(menuRect.x, menuRect.y, menuRect.width - 82, 28);
+            // ── 拖拽处理 (保留顶部拖拽区域) ─────────────────────
+            Rect titleBarRect = new Rect(menuRect.x, menuRect.y, menuRect.width - 60, 36);
             if (e.type == EventType.MouseDown && e.button == 0 && titleBarRect.Contains(e.mousePosition))
             {
                 _isDragging  = true;
@@ -452,33 +461,38 @@ namespace BurglinCheat
                 menuRect.y = e.mousePosition.y - _dragOffset.y;
                 e.Use();
             }
-            menuRect.x = Mathf.Clamp(menuRect.x, 0, Screen.width  - menuRect.width);
-            menuRect.y = Mathf.Clamp(menuRect.y, 0, Screen.height - menuRect.height);
+            menuRect.x = Mathf.Clamp(menuRect.x, -menuRect.width + 100, Screen.width  - 50);
+            menuRect.y = Mathf.Clamp(menuRect.y, -menuRect.height + 100, Screen.height - 50);
 
-            // ── 窗口背景 ──────────────────────────────────────
+            // ── 主窗口与侧边栏背景 ────────────────────────────
             GUI.Box(menuRect, GUIContent.none, sWin);
+            
+            float sidebarWidth = 140f;
+            Rect sidebarRect = new Rect(menuRect.x, menuRect.y, sidebarWidth, menuRect.height);
+            GUI.DrawTexture(sidebarRect, txSidebar);
+            
+            // 霓虹侧边栏分割线
+            GUI.DrawTexture(new Rect(sidebarRect.xMax, menuRect.y, 1, menuRect.height), txAccent);
 
-            // ── 标题栏 ────────────────────────────────────────
-            Rect title = new Rect(menuRect.x, menuRect.y, menuRect.width, 28);
-            GUI.DrawTexture(title, txTitle);
-            GUI.Label(new Rect(title.x + 10, title.y + 5, title.width - 100, 20),
-                      "⚡  Burglin' Gnomes 漏洞总线  v2", sSec);
-            if (GUI.Button(new Rect(menuRect.xMax - 78, menuRect.y + 3, 36, 22), "━", sBtnSm))
+            // ── 标题栏 (左侧) ─────────────────────────────────
+            GUI.Label(new Rect(menuRect.x + 12, menuRect.y + 12, sidebarWidth - 20, 24), "⚡ Gnomium", sSec);
+
+            if (GUI.Button(new Rect(menuRect.xMax - 54, menuRect.y + 8, 24, 24), "➖", sBtnSm))
                 showMenu = false;
-            if (GUI.Button(new Rect(menuRect.xMax - 40, menuRect.y + 3, 36, 22), "╳", sBtnSm))
+            if (GUI.Button(new Rect(menuRect.xMax - 28, menuRect.y + 8, 24, 24), "╳", sBtnSm))
                 Loader.Unload();
 
-            // ── Tab 栏 ────────────────────────────────────────
-            float tw = menuRect.width / tabs.Length;
+            // ── 左侧 Tab 栏 ───────────────────────────────────
+            GUILayout.BeginArea(new Rect(menuRect.x, menuRect.y + 46, sidebarWidth, menuRect.height - 50));
             for (int i = 0; i < tabs.Length; i++)
             {
-                Rect tr = new Rect(menuRect.x + i * tw, menuRect.y + 30, tw, 26);
-                if (GUI.Button(tr, tabs[i], i == currentTab ? sTabOn : sTabOff))
+                if (GUILayout.Button($"{(i == currentTab ? " ■ " : "   ")}{tabs[i]}", i == currentTab ? sTabOn : sTabOff, GUILayout.Height(38)))
                     currentTab = i;
             }
+            GUILayout.EndArea();
 
-            // ── 内容区 (ScrollView) ───────────────────────────
-            Rect content = new Rect(menuRect.x + 2, menuRect.y + 58, menuRect.width - 4, menuRect.height - 88);
+            // ── 右侧内容区 (ScrollView) ───────────────────────
+            Rect content = new Rect(menuRect.x + sidebarWidth + 8, menuRect.y + 36, menuRect.width - sidebarWidth - 16, menuRect.height - 66);
             GUILayout.BeginArea(content);
             scrollPos = GUILayout.BeginScrollView(scrollPos, false, false,
                 GUIStyle.none, GUI.skin.verticalScrollbar,
@@ -497,11 +511,11 @@ namespace BurglinCheat
             GUILayout.EndScrollView();
             GUILayout.EndArea();
 
-            // ── 状态栏 ────────────────────────────────────────
-            Rect status = new Rect(menuRect.x, menuRect.yMax - 28, menuRect.width, 28);
+            // ── 右侧状态栏 (底部) ─────────────────────────────
+            Rect status = new Rect(menuRect.x + sidebarWidth + 1, menuRect.yMax - 26, menuRect.width - sidebarWidth - 1, 26);
             GUI.DrawTexture(status, txStatus);
-            GUI.Label(new Rect(status.x + 8, status.y + 6, status.width - 16, 18),
-                $"◈ 已注入  |  {cachedEnemies.Count} 敌  {cachedLoot.Count} 赃物  {cachedPlayers.Count} 玩家  |  [Insert] 切换",
+            GUI.Label(new Rect(status.x + 10, status.y + 4, status.width - 20, 18),
+                $"◈ 注入就绪  |  {cachedEnemies.Count} 敌  {cachedLoot.Count} 赃物  {cachedPlayers.Count} 玩家  |  [Insert] 隐藏",
                 sDimLbl);
         }
 
